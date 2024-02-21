@@ -5,6 +5,9 @@ const path = require("path")
 const process = require("process")
 const { authenticate } = require("@google-cloud/local-auth")
 const { google } = require("googleapis")
+const OpenAI = require("openai")
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
@@ -76,7 +79,7 @@ async function listMajors(auth) {
   const sheets = google.sheets({ version: "v4", auth })
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env["SPREADSHEETID"],
-    range: "Form Responses 1!A2:E",
+    range: "Form Responses 1!A1:Z2",
   })
   const rows = res.data.values
   if (!rows || rows.length === 0) {
@@ -90,22 +93,28 @@ async function listMajors(auth) {
   //Hacer una funcion con las preguntas y respuesta (ej: pregunta 1 con respuesta 1)
   //Escribir prompt y pedir a chatGPT que responda
 
-  //   const generateSummaryUsingLLM = async (prompt) => {
-  //     const stream = await openai.chat.completions.create({
-  //         model: 'gpt-3.5-turbo',
-  //         messages: [{ role: 'user', content: prompt }],
-  //         stream: true,
-  //     });
-  //     for await (const chunk of stream) {
-  //         process.stdout.write(chunk.choices[0]?.delta?.content || '');
-  //     }
-  // }
+  const generateSummaryUsingLLM = async (prompt) => {
+    const stream = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      stream: true,
+    })
+    for await (const chunk of stream) {
+      process.stdout.write(chunk.choices[0]?.delta?.content || "")
+    }
+  }
 
-  //   console.log("Name, Major:")
-  //   rows.forEach((row) => {
-  //     // Print columns A and E, which correspond to indices 0 and 4.
-  //     console.log(`${row[0]}, ${row[4]}`)
-  //   })
+  const questions = rows[0].filter((row) => row).slice(1)
+  const answers = rows[1].filter((row) => row).slice(1)
+
+  let text = ""
+  for (let i = 0; i <= questions.length - 1; i++) {
+    text += `${questions[i]} ${answers[i]}`
+  }
+
+  const prompt = `Given the following questions and answers between angle brackets given by an architect who performed the inspection of a building, draft a Building Envelope Assesment Report with an introduction, body and conclusion. Questions and answers:\n<${text}>`
+
+  generateSummaryUsingLLM(prompt)
 }
 
 authorize().then(listMajors).catch(console.error)
