@@ -71,11 +71,11 @@ async function authorize() {
 }
 
 /**
- * Prints the names and majors of students in a sample spreadsheet:
- * @see https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
- * @param {google.auth.OAuth2} auth The authenticated Google OAuth client.
+ * Reads the content of our sample spreadsheet:
+ * @see https://docs.google.com/spreadsheets/d/1jLJbLdSc4F1Hdcs8zROGGr1okU_ELYfrVBc_ZRq3QQM/edit
  */
-async function listMajors(auth) {
+async function readSheetAndGenerateSummary(auth) {
+  // Read first two rows of the sample spreadsheet, where our data is located
   const sheets = google.sheets({ version: "v4", auth })
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env["SPREADSHEETID"],
@@ -87,12 +87,7 @@ async function listMajors(auth) {
     return
   }
 
-  //Levantar todas las celdas menos las que estan vacias, ej de Pablo: A1 al 100
-  //Conseguir el primer resultado en otra variable
-  //Conseguir el ultimo resultado en otra variable
-  //Hacer una funcion con las preguntas y respuesta (ej: pregunta 1 con respuesta 1)
-  //Escribir prompt y pedir a chatGPT que responda
-
+  // Method to prompt openAI chatbot
   const generateSummaryUsingLLM = async (prompt) => {
     const stream = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -104,6 +99,7 @@ async function listMajors(auth) {
     }
   }
 
+  // Parse questions and answers from our spreadsheet
   const questions = rows[0].filter((row) => row).slice(1)
   const answers = rows[1].filter((row) => row).slice(1)
 
@@ -112,9 +108,10 @@ async function listMajors(auth) {
     text += `${questions[i]} ${answers[i]}`
   }
 
+  // Create prompt
   const prompt = `Given the following questions and answers between angle brackets given by an architect who performed the inspection of a building, draft a Building Envelope Assesment Report with an introduction, body and conclusion. Questions and answers:\n<${text}>`
 
   generateSummaryUsingLLM(prompt)
 }
 
-authorize().then(listMajors).catch(console.error)
+authorize().then(readSheetAndGenerateSummary).catch(console.error)
