@@ -87,18 +87,6 @@ async function readSheetAndGenerateSummary(auth) {
     return
   }
 
-  // Method to prompt openAI chatbot
-  const generateSummaryUsingLLM = async (prompt) => {
-    const stream = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-      stream: true,
-    })
-    for await (const chunk of stream) {
-      process.stdout.write(chunk.choices[0]?.delta?.content || "")
-    }
-  }
-
   // Parse questions and answers from our spreadsheet
   const questions = rows[0].filter((row) => row).slice(1)
   const answers = rows[1].filter((row) => row).slice(1)
@@ -111,7 +99,19 @@ async function readSheetAndGenerateSummary(auth) {
   // Create prompt
   const prompt = `Given the following questions and answers between angle brackets given by an architect who performed the inspection of a building, draft a Building Envelope Assesment Report with an introduction, body and conclusion. Questions and answers:\n<${text}>`
 
-  generateSummaryUsingLLM(prompt)
+  generateTextUsingLLM(prompt)
+}
+
+// Method to prompt openAI chatbot
+async function generateTextUsingLLM(prompt) {
+  const stream = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [{ role: "user", content: prompt }],
+    stream: true,
+  })
+  for await (const chunk of stream) {
+    process.stdout.write(chunk.choices[0]?.delta?.content || "")
+  }
 }
 
 authorize().then(readSheetAndGenerateSummary).catch(console.error)
